@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Money Drop Game</title>
+    <style>
+        :root {
+            --primary: #00d2ff;
+            --bg: #1a1a1a;
+            --box-bg: #2a2a2a;
+            --correct: #2ecc71;
+            --wrong: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: white;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Header & Info */
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .balance-display {
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+            margin: 10px 0;
+        }
+
+        .status-bar {
+            background: #333;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+        }
+
+        .remaining-msg {
+            color: #ffcc00;
+        }
+
+        /* Game Grid */
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 30px;
+        }
+
+        .drop-box {
+            background-color: var(--box-bg);
+            border: 3px solid #555;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .drop-box.active { border-color: var(--primary); }
+        .drop-box.winner { border-color: var(--correct); background-color: rgba(46, 204, 113, 0.1); }
+        .drop-box.loser { border-color: var(--wrong); opacity: 0.5; }
+
+        .box-label {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .amount-input {
+            width: 80%;
+            padding: 10px;
+            font-size: 1.5rem;
+            text-align: center;
+            background: #111;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 5px;
+        }
+
+        /* Controls */
+        .controls {
+            background: #333;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 800px;
+            border-top: 4px solid var(--primary);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #444;
+        }
+
+        h3 { margin-top: 0; color: #aaa; }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .btn-reveal { background-color: #ff9800; color: black; width: 100%; font-size: 1.2rem;}
+        .btn-reveal:hover { background-color: #e68900; }
+        
+        .btn-next { background-color: var(--correct); color: white; display: none; width: 100%; font-size: 1.2rem;}
+        
+        .btn-reset { background-color: var(--wrong); color: white; margin-top: 10px;}
+
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+        }
+
+        /* Host Panel */
+        select {
+            padding: 10px;
+            font-size: 1.1rem;
+            border-radius: 5px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>THE DROP</h1>
+        <div class="balance-display">$<span id="totalMoney">1000000</span></div>
+        <div class="status-bar">
+            <span>Allocated: <span id="allocatedDisplay">0</span></span>
+            <span class="remaining-msg" id="remainingDisplay">Remaining: 1000000</span>
+        </div>
+    </header>
+
+    <div class="grid-container">
+        <div class="drop-box" id="box-A">
+            <span class="box-label">A</span>
+            <input type="number" class="amount-input" oninput="updateAllocation()" placeholder="0">
+        </div>
+
+        <div class="drop-box" id="box-B">
+            <span class="box-label">B</span>
+            <input type="number" class="amount-input" oninput="updateAllocation()" placeholder="0">
+        </div>
+
+        <div class="drop-box" id="box-C">
+            <span class="box-label">C</span>
+            <input type="number" class="amount-input" oninput="updateAllocation()" placeholder="0">
+        </div>
+
+        <div class="drop-box" id="box-D">
+            <span class="box-label">D</span>
+            <input type="number" class="amount-input" oninput="updateAllocation()" placeholder="0">
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <h3>HOST CONTROLS</h3>
+            <label for="correctAnswer">Select Correct Answer:</label>
+            <select id="correctAnswer">
+                <option value="A">Box A</option>
+                <option value="B">Box B</option>
+                <option value="C">Box C</option>
+                <option value="D">Box D</option>
+            </select>
+        </div>
+
+        <button class="btn-reveal" id="btnReveal" onclick="revealAnswer()">LOCK IN & REVEAL</button>
+        <button class="btn-next" id="btnNext" onclick="nextRound()">START NEXT ROUND</button>
+        
+        <div style="margin-top: 30px; border-top: 1px solid #555; padding-top: 10px;">
+            <label>Set New Game Amount:</label>
+            <input type="number" id="startAmount" value="1000000" style="padding: 5px;">
+            <button class="btn-reset" onclick="resetGame()">NEW GAME</button>
+        </div>
+    </div>
+
+    <script>
+        let currentTotal = 1000000;
+        let gameActive = true;
+
+        // Initialize display
+        const totalDisplay = document.getElementById('totalMoney');
+        const allocDisplay = document.getElementById('allocatedDisplay');
+        const remDisplay = document.getElementById('remainingDisplay');
+        const inputs = document.querySelectorAll('.amount-input');
+        const boxes = document.querySelectorAll('.drop-box');
+
+        function updateAllocation() {
+            if (!gameActive) return;
+
+            let allocated = 0;
+            inputs.forEach(input => {
+                let val = parseInt(input.value) || 0;
+                if (val < 0) {
+                    input.value = 0;
+                    val = 0;
+                }
+                allocated += val;
+            });
+
+            const remaining = currentTotal - allocated;
+
+            // Update UI text
+            allocDisplay.innerText = allocated.toLocaleString();
+            remDisplay.innerText = "Remaining: " + remaining.toLocaleString();
+
+            // Validation logic
+            if (remaining < 0) {
+                remDisplay.style.color = "red";
+                remDisplay.innerText = "OVER LIMIT! Remove " + Math.abs(remaining).toLocaleString();
+                document.getElementById('btnReveal').disabled = true;
+                document.getElementById('btnReveal').style.backgroundColor = "#555";
+            } else {
+                remDisplay.style.color = "#ffcc00";
+                document.getElementById('btnReveal').disabled = false;
+                document.getElementById('btnReveal').style.backgroundColor = "#ff9800";
+            }
+            
+            // Highlight boxes with money
+            inputs.forEach(input => {
+                const box = input.parentElement;
+                if(parseInt(input.value) > 0) {
+                    box.classList.add('active');
+                } else {
+                    box.classList.remove('active');
+                }
+            });
+        }
+
+        function revealAnswer() {
+            // Check if player allocated exactly the total amount? 
+            // In the real game, you MUST allocate everything.
+            // Here we just warn if they haven't, but let it slide for flexibility.
+            
+            gameActive = false;
+            const correctBox = document.getElementById('correctAnswer').value; // A, B, C, or D
+            
+            // Lock inputs
+            inputs.forEach(input => input.disabled = true);
+
+            // Animate/Calculate
+            boxes.forEach(box => {
+                const boxLetter = box.querySelector('.box-label').innerText;
+                const inputVal = parseInt(box.querySelector('input').value) || 0;
+
+                if (boxLetter === correctBox) {
+                    // This box is safe
+                    box.classList.add('winner');
+                    // The new total becomes whatever was in this box
+                    currentTotal = inputVal;
+                } else {
+                    // This box drops
+                    box.classList.add('loser');
+                    // Money here is lost
+                }
+            });
+
+            // Update Total Money Display
+            totalDisplay.innerText = currentTotal.toLocaleString();
+            
+            // Update buttons
+            document.getElementById('btnReveal').style.display = 'none';
+            document.getElementById('btnNext').style.display = 'block';
+
+            if (currentTotal === 0) {
+                remDisplay.innerText = "GAME OVER";
+                remDisplay.style.color = "red";
+                document.getElementById('btnNext').style.display = 'none';
+            } else {
+                remDisplay.innerText = "Safe! Ready for next round.";
+                remDisplay.style.color = "#2ecc71";
+            }
+        }
+
+        function nextRound() {
+            // Reset UI for next round but keep currentTotal
+            gameActive = true;
+            
+            boxes.forEach(box => {
+                box.classList.remove('winner', 'loser', 'active');
+            });
+
+            inputs.forEach(input => {
+                input.value = '';
+                input.disabled = false;
+            });
+
+            document.getElementById('btnReveal').style.display = 'block';
+            document.getElementById('btnNext').style.display = 'none';
+            
+            updateAllocation(); // Reset counters
+        }
+
+        function resetGame() {
+            const startVal = document.getElementById('startAmount').value;
+            currentTotal = parseInt(startVal) || 1000000;
+            totalDisplay.innerText = currentTotal.toLocaleString();
+            document.getElementById('btnNext').style.display = 'none';
+            document.getElementById('btnReveal').style.display = 'block';
+            nextRound();
+        }
+    </script>
+</body>
+</html>
